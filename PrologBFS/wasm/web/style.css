@@ -1,0 +1,47 @@
+html, body {
+    /*width:100%;*/
+    height: 100%;
+    padding: 0px;
+    margin: 0px;
+    /*overflow: hidden;*/
+}
+
+#errorbox {
+    position: fixed;
+    display: none;
+    top: 1%;
+    right: 1%;
+    /*background-color: rgba(0,0,0,0.5);  Black background with opacity */
+    z-index: 2;
+}
+
+.bfs-container {
+    border-style: solid;
+    border-color: darkgrey;
+    border-width: 1px;
+    margin: 5px;
+    padding: 1px;
+}
+
+.editor {
+    font-size: medium;
+}
+
+.code {
+    font-family: monospace, Monaco;
+}
+
+.resultalert {
+    margin-bottom: 0.25rem;
+    padding-bottom: 0.25rem;
+    padding-left: 1rem;
+    padding-top: 0.25rem;
+    padding-right: 3rem;
+}
+.resultalert hr {
+    margin: 0.25rem;
+}
+
+.resultalert p {
+    margin-bottom: 0.25rem;
+}
