@@ -1233,11 +1233,11 @@ function updateGlobalBufferViews() {
 
 
 var STATIC_BASE = 1024,
-    STACK_BASE = 36912,
+    STACK_BASE = 36928,
     STACKTOP = STACK_BASE,
-    STACK_MAX = 5279792,
-    DYNAMIC_BASE = 5279792,
-    DYNAMICTOP_PTR = 36880;
+    STACK_MAX = 5279808,
+    DYNAMIC_BASE = 5279808,
+    DYNAMICTOP_PTR = 36896;
 
 assert(STACK_BASE % 16 === 0, 'stack must start aligned');
 assert(DYNAMIC_BASE % 16 === 0, 'heap must start aligned');
@@ -1247,7 +1247,7 @@ assert(DYNAMIC_BASE % 16 === 0, 'heap must start aligned');
 var TOTAL_STACK = 5242880;
 if (Module['TOTAL_STACK']) assert(TOTAL_STACK === Module['TOTAL_STACK'], 'the stack size can no longer be determined at runtime')
 
-var INITIAL_TOTAL_MEMORY = Module['TOTAL_MEMORY'] || 16777216;if (!Object.getOwnPropertyDescriptor(Module, 'TOTAL_MEMORY')) Object.defineProperty(Module, 'TOTAL_MEMORY', { get: function() { abort('Module.TOTAL_MEMORY has been replaced with plain INITIAL_TOTAL_MEMORY') } });
+var INITIAL_TOTAL_MEMORY = Module['TOTAL_MEMORY'] || 524288000;if (!Object.getOwnPropertyDescriptor(Module, 'TOTAL_MEMORY')) Object.defineProperty(Module, 'TOTAL_MEMORY', { get: function() { abort('Module.TOTAL_MEMORY has been replaced with plain INITIAL_TOTAL_MEMORY') } });
 
 assert(INITIAL_TOTAL_MEMORY >= TOTAL_STACK, 'TOTAL_MEMORY should be larger than TOTAL_STACK, was ' + INITIAL_TOTAL_MEMORY + '! (TOTAL_STACK=' + TOTAL_STACK + ')');
 
@@ -1267,6 +1267,8 @@ assert(typeof Int32Array !== 'undefined' && typeof Float64Array !== 'undefined' 
   {
     wasmMemory = new WebAssembly.Memory({
       'initial': INITIAL_TOTAL_MEMORY / WASM_PAGE_SIZE
+      ,
+      'maximum': INITIAL_TOTAL_MEMORY / WASM_PAGE_SIZE
     });
   }
 
@@ -1751,7 +1753,7 @@ var ASM_CONSTS = [];
 
 
 
-// STATICTOP = STATIC_BASE + 35888;
+// STATICTOP = STATIC_BASE + 35904;
 /* global initializers */  __ATINIT__.push({ func: function() { globalCtors() } });
 
 
@@ -1762,7 +1764,7 @@ var ASM_CONSTS = [];
 
 
 /* no memory initializer */
-var tempDoublePtr = 36896
+var tempDoublePtr = 36912
 assert(tempDoublePtr % 8 == 0);
 
 function copyTempFloat(ptr) { // functions, because inlining this code increases code size too much
@@ -2423,17 +2425,6 @@ function copyTempDouble(ptr) {
           }
           return size;
         },write:function (stream, buffer, offset, length, position, canOwn) {
-          // If memory can grow, we don't want to hold on to references of
-          // the memory Buffer, as they may get invalidated. That means
-          // we need to do a copy here.
-          // FIXME: this is inefficient as the file packager may have
-          //        copied the data into memory already - we may want to
-          //        integrate more there and let the file packager loading
-          //        code be able to query if memory growth is on or off.
-          if (canOwn) {
-            warnOnce('file packager has copied file data into memory, but in memory growth we are forced to copy it again (see --no-heap-copy)');
-          }
-          canOwn = false;
   
           if (!length) return 0;
           var node = stream.node;
@@ -6831,76 +6822,8 @@ function copyTempDouble(ptr) {
   
   function abortOnCannotGrowMemory(requestedSize) {
       abort('Cannot enlarge memory arrays to size ' + requestedSize + ' bytes (OOM). Either (1) compile with  -s TOTAL_MEMORY=X  with X higher than the current value ' + HEAP8.length + ', (2) compile with  -s ALLOW_MEMORY_GROWTH=1  which allows increasing the size at runtime, or (3) if you want malloc to return NULL (0) instead of this abort, compile with  -s ABORTING_MALLOC=0 ');
-    }
-  
-  function emscripten_realloc_buffer(size) {
-      var PAGE_MULTIPLE = 65536;
-      size = alignUp(size, PAGE_MULTIPLE); // round up to wasm page size
-      var oldSize = buffer.byteLength;
-      // native wasm support
-      // note that this is *not* threadsafe. multiple threads can call .grow(), and each
-      // presents a delta, so in theory we may over-allocate here (e.g. if two threads
-      // ask to grow from 256MB to 512MB, we get 2 requests to add +256MB, and may end
-      // up growing to 768MB (even though we may have been able to make do with 512MB).
-      // TODO: consider decreasing the step sizes in emscripten_resize_heap
-      try {
-        var result = wasmMemory.grow((size - oldSize) / 65536); // .grow() takes a delta compared to the previous size
-        if (result !== (-1 | 0)) {
-          // success in native wasm memory growth, get the buffer from the memory
-          buffer = wasmMemory.buffer;
-          return true;
-        } else {
-          return false;
-        }
-      } catch(e) {
-        console.error('emscripten_realloc_buffer: Attempted to grow from ' + oldSize  + ' bytes to ' + size + ' bytes, but got error: ' + e);
-        return false;
-      }
     }function _emscripten_resize_heap(requestedSize) {
-      var oldSize = _emscripten_get_heap_size();
-      // With pthreads, races can happen (another thread might increase the size in between), so return a failure, and let the caller retry.
-      assert(requestedSize > oldSize);
-  
-  
-      var PAGE_MULTIPLE = 65536;
-      var LIMIT = 2147483648 - PAGE_MULTIPLE; // We can do one page short of 2GB as theoretical maximum.
-  
-      if (requestedSize > LIMIT) {
-        err('Cannot enlarge memory, asked to go up to ' + requestedSize + ' bytes, but the limit is ' + LIMIT + ' bytes!');
-        return false;
-      }
-  
-      var MIN_TOTAL_MEMORY = 16777216;
-      var newSize = Math.max(oldSize, MIN_TOTAL_MEMORY); // So the loop below will not be infinite, and minimum asm.js memory size is 16MB.
-  
-      // TODO: see realloc_buffer - for PTHREADS we may want to decrease these jumps
-      while (newSize < requestedSize) { // Keep incrementing the heap size as long as it's less than what is requested.
-        if (newSize <= 536870912) {
-          newSize = alignUp(2 * newSize, PAGE_MULTIPLE); // Simple heuristic: double until 1GB...
-        } else {
-          // ..., but after that, add smaller increments towards 2GB, which we cannot reach
-          newSize = Math.min(alignUp((3 * newSize + 2147483648) / 4, PAGE_MULTIPLE), LIMIT);
-        }
-  
-        if (newSize === oldSize) {
-          warnOnce('Cannot ask for more memory since we reached the practical limit in browsers (which is just below 2GB), so the request would have failed. Requesting only ' + HEAP8.length);
-        }
-      }
-  
-  
-  
-      var start = Date.now();
-  
-      if (!emscripten_realloc_buffer(newSize)) {
-        err('Failed to grow the heap from ' + oldSize + ' bytes to ' + newSize + ' bytes, not enough memory!');
-        return false;
-      }
-  
-      updateGlobalBufferViews();
-  
-  
-  
-      return true;
+      abortOnCannotGrowMemory(requestedSize);
     } 
 
   
@@ -7263,7 +7186,7 @@ function copyTempDouble(ptr) {
       return _strftime(s, maxsize, format, tm); // no locale support yet
     }
 
-  var ___dso_handle=36720;
+  var ___dso_handle=36736;
 FS.staticInit();;
 if (ENVIRONMENT_HAS_NODE) { var fs = require("fs"); var NODEJS_PATH = require("path"); NODEFS.staticInit(); };
 embind_init_charCodes();
@@ -7434,7 +7357,6 @@ var asmLibraryArg = {
   "downcastPointer": downcastPointer,
   "embind__requireFunction": embind__requireFunction,
   "embind_init_charCodes": embind_init_charCodes,
-  "emscripten_realloc_buffer": emscripten_realloc_buffer,
   "ensureOverloadTable": ensureOverloadTable,
   "exposePublicSymbol": exposePublicSymbol,
   "extendError": extendError,
@@ -7518,12 +7440,6 @@ var ___getTypeName = Module["___getTypeName"] = function() {
   assert(runtimeInitialized, 'you need to wait for the runtime to be ready (e.g. wait for main() to be called)');
   assert(!runtimeExited, 'the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)');
   return Module["asm"]["___getTypeName"].apply(null, arguments)
-};
-
-var _emscripten_replace_memory = Module["_emscripten_replace_memory"] = function() {
-  assert(runtimeInitialized, 'you need to wait for the runtime to be ready (e.g. wait for main() to be called)');
-  assert(!runtimeExited, 'the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)');
-  return Module["asm"]["_emscripten_replace_memory"].apply(null, arguments)
 };
 
 var _fflush = Module["_fflush"] = function() {

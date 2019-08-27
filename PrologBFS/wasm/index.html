@@ -15,6 +15,12 @@
         <script src="web/hotkeys.min.js"></script>
 
 	<script>
+            // Config
+            // save current program and query every x milliseconds
+            var autosaveInterval = 60000;
+            
+            // End of config
+            
             // set to true once the wasm runtime is ready.
             var runtimeInitialized = false;
             
@@ -87,6 +93,27 @@
             }
             
             /*
+             * Get the next answer. Requires a program and query to
+             * be loaded first.
+             */
+            function getAnswer(instanceid) {
+                try {
+                    var result = instances[instanceid].getAnswer();
+                } catch(err) {
+                    showError("Error getting result. Probably ran out of memory (infinite loop).");
+                    console.log(err);
+                    killInstance(instanceid);
+                }
+                
+                return result;
+            }
+            
+            function killInstance(instanceid) {
+                instances[instanceid].clear();
+                instances[instanceid] = {};
+            }
+            
+            /*
              * onclick event of the "run" button.
              * This processes the current program and query input
              * and displays the result.
@@ -124,7 +151,7 @@
                 }
                 
                 // get answer
-                var result = instances[instanceid].getAnswer();
+                var result = getAnswer(instanceid);
                 
                 pushResult(instanceid, inputQuery, result);
             }
@@ -135,15 +162,23 @@
              * and displays it.
              */
             function nextAnswer(instanceid) {
-                appendResult(instanceid, instances[instanceid].getAnswer());
+                appendResult(instanceid, getAnswer(instanceid));
                 scrollResultsToBottom();
             }
             
-            window.onbeforeunload = function() {
+            function autosave() {
                 // Store program code for 7 days
                 Cookies.set('programcode', ace.edit("program").getValue(), { expires: 7 });
                 Cookies.set('querycode', ace.edit("query").getValue(), { expires: 7 });
-              };
+            }
+            
+            window.onbeforeunload = function() {
+                autosave();
+            };
+            
+            setInterval(function() {
+                autosave();
+            }, autosaveInterval);
             
             /*
              * register hotkeys for use outside the editors.
@@ -171,7 +206,7 @@
 
                 <div class="bfs-container" style="display: flex; flex-flow: column; flex: 1;">
                     <div class="bfs-container" style="max-height: 80%; height:80%; overflow: auto;
-                        display: flex; flex-flow: column; justify-content: flex-end;" id="results_container"></div>
+                        /*display: flex; flex-flow: column; justify-content: flex-end;*/" id="results_container"></div>
 
                     <div class="bfs-container" style="display: flex; flex-flow: column; flex:1;">
                         <!-- query editor -->
