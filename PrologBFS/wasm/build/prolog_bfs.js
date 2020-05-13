@@ -689,8 +689,8 @@ var wasmMemory;
 // In the wasm backend, we polyfill the WebAssembly object,
 // so this creates a (non-native-wasm) table for us.
 var wasmTable = new WebAssembly.Table({
-  'initial': 1746,
-  'maximum': 1746 + 0,
+  'initial': 1792,
+  'maximum': 1792 + 0,
   'element': 'anyfunc'
 });
 
@@ -1298,11 +1298,11 @@ function updateGlobalBufferAndViews(buf) {
 }
 
 var STATIC_BASE = 1024,
-    STACK_BASE = 5293984,
+    STACK_BASE = 5293568,
     STACKTOP = STACK_BASE,
-    STACK_MAX = 51104,
-    DYNAMIC_BASE = 5293984,
-    DYNAMICTOP_PTR = 50928;
+    STACK_MAX = 50688,
+    DYNAMIC_BASE = 5293568,
+    DYNAMICTOP_PTR = 50512;
 
 assert(STACK_BASE % 16 === 0, 'stack must start aligned');
 assert(DYNAMIC_BASE % 16 === 0, 'heap must start aligned');
@@ -1836,7 +1836,7 @@ var ASM_CONSTS = {
 
 
 
-// STATICTOP = STATIC_BASE + 50080;
+// STATICTOP = STATIC_BASE + 49664;
 /* global initializers */  __ATINIT__.push({ func: function() { ___wasm_call_ctors() } });
 
 
@@ -1989,7 +1989,7 @@ var ASM_CONSTS = {
   
       var pointer = ___cxa_is_pointer_type(throwntype);
       // can_catch receives a **, add indirection
-      var buffer = 51088;
+      var buffer = 50672;
       HEAP32[((buffer)>>2)]=thrown;
       thrown = buffer;
       // The different catch blocks are denoted by different types.
@@ -2026,7 +2026,7 @@ var ASM_CONSTS = {
   
       var pointer = ___cxa_is_pointer_type(throwntype);
       // can_catch receives a **, add indirection
-      var buffer = 51088;
+      var buffer = 50672;
       HEAP32[((buffer)>>2)]=thrown;
       thrown = buffer;
       // The different catch blocks are denoted by different types.
@@ -6177,7 +6177,7 @@ var ASM_CONSTS = {
     }
 
   function _emscripten_get_sbrk_ptr() {
-      return 50928;
+      return 50512;
     }
 
   function _emscripten_memcpy_big(dest, src, num) {
@@ -7155,6 +7155,20 @@ var dynCall_viijii = Module["dynCall_viijii"] = function() {
 };
 
 /** @type {function(...*):?} */
+var dynCall_fff = Module["dynCall_fff"] = function() {
+  assert(runtimeInitialized, 'you need to wait for the runtime to be ready (e.g. wait for main() to be called)');
+  assert(!runtimeExited, 'the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)');
+  return Module["asm"]["dynCall_fff"].apply(null, arguments)
+};
+
+/** @type {function(...*):?} */
+var dynCall_didd = Module["dynCall_didd"] = function() {
+  assert(runtimeInitialized, 'you need to wait for the runtime to be ready (e.g. wait for main() to be called)');
+  assert(!runtimeExited, 'the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)');
+  return Module["asm"]["dynCall_didd"].apply(null, arguments)
+};
+
+/** @type {function(...*):?} */
 var dynCall_iidiiii = Module["dynCall_iidiiii"] = function() {
   assert(runtimeInitialized, 'you need to wait for the runtime to be ready (e.g. wait for main() to be called)');
   assert(!runtimeExited, 'the runtime was exited (use NO_EXIT_RUNTIME to keep it alive after main() exits)');
@@ -7270,10 +7284,10 @@ function invoke_iiii(index,a1,a2,a3) {
   }
 }
 
-function invoke_iiiiii(index,a1,a2,a3,a4,a5) {
+function invoke_ii(index,a1) {
   var sp = stackSave();
   try {
-    return dynCall_iiiiii(index,a1,a2,a3,a4,a5);
+    return dynCall_ii(index,a1);
   } catch(e) {
     stackRestore(sp);
     if (e !== e+0 && e !== 'longjmp') throw e;
@@ -7281,10 +7295,10 @@ function invoke_iiiiii(index,a1,a2,a3,a4,a5) {
   }
 }
 
-function invoke_ii(index,a1) {
+function invoke_iiiiii(index,a1,a2,a3,a4,a5) {
   var sp = stackSave();
   try {
-    return dynCall_ii(index,a1);
+    return dynCall_iiiiii(index,a1,a2,a3,a4,a5);
   } catch(e) {
     stackRestore(sp);
     if (e !== e+0 && e !== 'longjmp') throw e;
