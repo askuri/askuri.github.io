@@ -61,7 +61,6 @@ class TreeView {
         // needs redrawing?
         if (this.drawing_id === TreeView.newest_drawing_id) {
             // no re-drawing needed, do nothing
-            console.log("no redrawing");
             return;
         }
         // re-drawing needed
@@ -171,8 +170,7 @@ class TreeView {
             }
             // query_node FAILED, has no children
             else if (current_query_node.failed()) {
-                additional_node_counter;
-                nodes.push({ id: failed_node_id, label: "failed! (No such rule)" });
+                nodes.push({ id: additional_node_counter, label: "no such rule" });
                 edges.push( {
                     from: current_query_node_id,
                     to: additional_node_counter,
@@ -210,7 +208,7 @@ class TreeView {
                             //Der Fassbender baum lässt manche failed nodes weg... Deshalb hier an jeder edge die rule line
                         nodes.push( { 
                             id: additional_node_counter, 
-                            label: "failed",
+                            label: "not unifiable",
                             color: {
                                 background: "lightgray",
                                 border: "gray"

@@ -44,16 +44,26 @@ class InterpreterHandler {
         // try to load the program
         var program_error = this.interpreter.loadProgram(program);
         if (program_error.exists()) { // check if there is a syntax error
-            syntaxError.show("program", program_error.get_row(), program_error.get_col());
-            alert.show("Syntax error in program line " + (program_error.get_row()+1) + ". Expected: " + program_error.get_expected(), 0);
+            if(program_error.is_parser_error()){
+                syntaxError.show("program", program_error.get_row(), program_error.get_col() );
+                alert.show("Syntax error in program line " + (program_error.get_row()+1) + ". Expected: " + program_error.get_cause(), 0);
+            }else{//Real compiler error
+                syntaxError.show("program", program_error.get_row() - 1, program_error.get_col() - 1);
+                alert.show("Compiler error in program line " + program_error.get_row()  + ". " + program_error.get_cause(), 0);
+            }
             return false;
         }
         
         // try to load the query
         var query_error = this.interpreter.loadQuery(query);
         if (query_error.exists()) {
-            syntaxError.show("query", query_error.get_row(), query_error.get_col());
-            alert.show("Syntax error in query line " + (query_error.get_row()+1) + ". Expected: " + query_error.get_expected(), 0);
+            if(query_error.is_parser_error()){
+                syntaxError.show("query", query_error.get_row() , query_error.get_col());
+                alert.show("Syntax error in query line " + (query_error.get_row()+1) + ". Expected: " + query_error.get_cause(), 0);
+            }else{
+                syntaxError.show("query", query_error.get_row() - 1, query_error.get_col() - 1);
+                alert.show("Compiler error in query line " + query_error.get_row() + ". " + query_error.get_cause(), 0);
+            }
             return false;
         }
         
@@ -73,8 +83,21 @@ class InterpreterHandler {
      */
     getAnswer() {
         try {
-            var result = this.interpreter.getAnswer();
-            return result;
+            let result = this.interpreter.getAnswer();
+            
+            if (result.isAnswer()) {
+                // no parsing error, no runtime error
+                return result.getAnswerAsString();
+            } else {
+                // no parsing error, got runtime error
+                /*
+                console.log(result.getError().getTypeAsString());
+                console.log(result.getError().getErrorLine());
+                console.log(result.getError().getErrorAtomAsString());
+                console.log(result.getError().getExplanation());
+                */
+                return result.getError().getExplanation();
+            }
         } catch (err) {
             alert.show("Error getting result. Probably ran out of memory (infinite loop).");
             console.log(err);
@@ -97,6 +120,12 @@ class InterpreterHandler {
         
         // tell TreeViews they need an update
         TreeView.newest_drawing_id++;
+        
+        // check whether there might be more answers. If not, disable the next button
+        // let tree = this.interpreter.getUnificationTree();
+        if (result == 'false') {
+            this.resultDiv.disableNext();
+        }
     }
     
     onShowTreeViewClicked() {
