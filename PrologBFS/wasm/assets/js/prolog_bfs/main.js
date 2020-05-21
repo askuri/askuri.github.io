@@ -65,7 +65,12 @@ function onRunClicked() {
     var inputQuery = ace.edit("query").getValue();
 
     //load program to the interpreter and run it
-    instances[instanceid].tryExecute(inputProgram, inputQuery);
+    try {
+        instances[instanceid].tryExecute(inputProgram, inputQuery);
+    } catch (err) {
+        alert.show("Error getting result. Probably ran out of memory (infinite loop?). Please close some answers (gray boxes) using the X on the top right to free up memory.");
+        console.log(err);
+    }
     
     // make sure result is visible
     scrollResultsToBottom();
@@ -100,3 +105,26 @@ window.onbeforeunload = function () {
 setInterval(function () {
     autosave();
 }, autosaveInterval);
+
+/*
+ * Make all Bootstrap modals draggable. Specifically helpful when moving the
+ * tree view away, so you can still see query or program code.
+ * Source: https://stackoverflow.com/questions/12571922/make-bootstrap-twitter-dialog-modal-draggable 
+ */
+$(".modal-header").on("mousedown", function(mousedownEvt) {
+    var $draggable = $(this);
+    var x = mousedownEvt.pageX - $draggable.offset().left,
+        y = mousedownEvt.pageY - $draggable.offset().top;
+    $("body").on("mousemove.draggable", function(mousemoveEvt) {
+        $draggable.closest(".modal-content").offset({
+            "left": mousemoveEvt.pageX - x,
+            "top": mousemoveEvt.pageY - y
+        });
+    });
+    $("body").one("mouseup", function() {
+        $("body").off("mousemove.draggable");
+    });
+    $draggable.closest(".modal").one("bs.modal.hide", function() {
+        $("body").off("mousemove.draggable");
+    });
+});
